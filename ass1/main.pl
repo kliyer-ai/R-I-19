@@ -37,5 +37,5 @@ pruneDiagnosis([List|Lists], Selected, [List|Next]) :-
 main(SD, COMP, OBS, HSS) :-
     findall(HS,
             gatherDiagnosis(SD, COMP, OBS, HS, []),
-            HSS1),
-    pruneDiagnosis(HSS1, [], HSS).
+            UHSS),
+    pruneDiagnosis(UHSS, [], HSS).
