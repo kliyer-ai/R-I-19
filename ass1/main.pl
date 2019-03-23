@@ -2,37 +2,40 @@
 :- [warmup2].
 
 
-isMinimalSubset(_, []) :-
-    !. % no more backtracking after minimality is confirmed
+% element is a minimal subset of all sets in list
+isMinimalSubset(_, []).
 isMinimalSubset(Elems, [List|Lists]) :-
     not(subset(List, Elems)),
     isMinimalSubset(Elems, Lists).
 
 
-prune([], _, []).
-prune([List|Lists], Selected, Next) :-
+gatherDiagnosis(SD, COMP, OBS, [], PATH) :-
+    not(tp(SD, COMP, OBS, PATH, _)).
+gatherDiagnosis(SD, COMP, OBS, [E|HS], PATH) :-
+    tp(SD, COMP, OBS, PATH, CS),
+    member(E, CS),
+    gatherDiagnosis(SD,
+                    COMP,
+                    OBS,
+                    HS,
+                    [E|PATH]).
+
+
+pruneDiagnosis([], _, []).
+pruneDiagnosis([List|Lists], Selected, Next) :-
     not(isMinimalSubset(List, Lists)),
     !, % red cut
-    prune(Lists, Selected, Next).
-prune([List|Lists], Selected, Next) :-
+    pruneDiagnosis(Lists, Selected, Next).
+pruneDiagnosis([List|Lists], Selected, Next) :-
     not(isMinimalSubset(List, Selected)),
     !, % red cut
-    prune(Lists, Selected, Next).
-prune([List|Lists], Selected, [List|Next]) :-
-    prune(Lists, [List|Selected], Next).
+    pruneDiagnosis(Lists, Selected, Next).
+pruneDiagnosis([List|Lists], Selected, [List|Next]) :-
+    pruneDiagnosis(Lists, [List|Selected], Next).
 
 
 main(SD, COMP, OBS, HSS) :-
     findall(HS,
-            main2(SD, COMP, OBS, HS, []),
+            gatherDiagnosis(SD, COMP, OBS, HS, []),
             HSS1),
-    prune(HSS1, [], HSS).
-
-
-main2(SD, COMP, OBS, [], PATH) :-
-    not(tp(SD, COMP, OBS, PATH, _)).
-main2(SD, COMP, OBS, [E|HS], PATH) :-
-    tp(SD, COMP, OBS, PATH, CS),
-    member(E, CS),
-    main2(SD, COMP, OBS, HS, [E|PATH]).
-
+    pruneDiagnosis(HSS1, [], HSS).
