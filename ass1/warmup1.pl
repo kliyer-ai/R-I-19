@@ -10,11 +10,13 @@
     % nnodes(Y, M2),
     % M is M1+M2,
     % N is M+1.
-% 
+%
+%
 isBinaryTree(leaf(_)).
 isBinaryTree(node(_, X, Y)) :-
     isBinaryTree(X),
     isBinaryTree(Y).
+
 
 nnodes(leaf(_), 1).
 nnodes(node(_, X, Y), N) :-
@@ -22,6 +24,7 @@ nnodes(node(_, X, Y), N) :-
     nnodes(Y, M2),
     M is M1+M2,
     N is M+1.
+
 
 makeBinaryTree(0, leaf(0)).
 makeBinaryTree(N, Tree) :-
@@ -35,6 +38,7 @@ makeTree(0, _, leaf(0)).
 makeTree(N, NumberOfChildren, Tree) :-
     getChildren(N, NumberOfChildren, L, NumberOfChildren),
     Tree=node(N, L).
+
 
 getChildren(_, _, [], 0).
 getChildren(N, NumberOfChildren, [H|T], C) :-
