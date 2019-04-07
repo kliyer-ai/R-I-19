@@ -9,33 +9,33 @@ isMinimalSubset(Elems, [List|Lists]) :-
     isMinimalSubset(Elems, Lists).
 
 
-gatherDiagnosis(SD, COMP, OBS, [], PATH) :-
+gatherDiagnoses(SD, COMP, OBS, [], PATH) :-
     not(tp(SD, COMP, OBS, PATH, _)).
-gatherDiagnosis(SD, COMP, OBS, [E|HS], PATH) :-
+gatherDiagnoses(SD, COMP, OBS, [E|HS], PATH) :-
     tp(SD, COMP, OBS, PATH, CS),
     member(E, CS),
-    gatherDiagnosis(SD,
+    gatherDiagnoses(SD,
                     COMP,
                     OBS,
                     HS,
                     [E|PATH]).
 
 
-pruneDiagnosis([], _, []).
-pruneDiagnosis([List|Lists], Selected, Next) :-
-    not(isMinimalSubset(List, Lists)),
+pruneDiagnoses([], _, []).
+pruneDiagnoses([Set|Sets], Selected, Minimal) :-
+    not(isMinimalSubset(Set, Sets)),
     !, % red cut
-    pruneDiagnosis(Lists, Selected, Next).
-pruneDiagnosis([List|Lists], Selected, Next) :-
-    not(isMinimalSubset(List, Selected)),
+    pruneDiagnoses(Sets, Selected, Minimal).
+pruneDiagnoses([Set|Sets], Selected, Minimal) :-
+    not(isMinimalSubset(Set, Selected)),
     !, % red cut
-    pruneDiagnosis(Lists, Selected, Next).
-pruneDiagnosis([List|Lists], Selected, [List|Next]) :-
-    pruneDiagnosis(Lists, [List|Selected], Next).
+    pruneDiagnoses(Sets, Selected, Minimal).
+pruneDiagnoses([Set|Sets], Selected, [Set|Minimal]) :-
+    pruneDiagnoses(Sets, [Set|Selected], Minimal).
 
 
 main(SD, COMP, OBS, HSS) :-
     findall(HS,
-            gatherDiagnosis(SD, COMP, OBS, HS, []),
+            gatherDiagnoses(SD, COMP, OBS, HS, []),
             UHSS),
-    pruneDiagnosis(UHSS, [], HSS).
+    pruneDiagnoses(UHSS, [], HSS).
