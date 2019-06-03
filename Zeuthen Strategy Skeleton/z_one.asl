@@ -246,6 +246,8 @@ dealWithBestUtility([MyDeal1,TheirDeal1],  [[MyDeal2,TheirDeal2]|Rest], BestDeal
 	.send(z_two, tell, theirLastDeal(BestDeal));
 	.send(z_two, achieve, checkDeal);
 	!getBetterDeal.
+
 	
-+!getBetterDeal
-	: 
++accepted(X):
+	.print("Deal Accepted ", X)	
+.
