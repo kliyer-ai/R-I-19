@@ -217,5 +217,31 @@ sortSet([[TheirSide,MySide]|OtherDeals],ToBeSorted,CurBestDeal,SetOfSortedDeals)
 	?sortedSet(Deals,SortedSet); //All good deals are now sorted.
 	.print("Agent 2 offers following deals ", SortedSet);
 	+theSetOfNegotiationDeals(SortedSet); //Remember the current negotiation deals.
+	?getBestDeal(BestDeal);
+	.print(BestDeal);
+	+myLastDeal(BestDeal);
+	.send(z_two, tell, theirLastDeal(BestDeal));
+	.send(z_two, achieve, checkDeal);
 	!getBetterDeal.
+	
++theirProposal([Theirs, Mine])
+	: originalTask(OT) &
+	theirOriginalTask(TOT) & 
+	getUtility(Mine,OT, UtilityM) & 
+	theirOriginalTask(TOT) & 
+	getUtility(Theirs,TOT, UtilityT) & 
+	UtilityT>=UtilityM 
+	<- 
+	.send(z_one, tell, accepted([Theirs, Mine])).
+
+	
++theirProposal([Theirs, Mine])
+	: originalTask(OT) &
+	theirOriginalTask(TOT) & 
+	getUtility(Mine,OT, UtilityM) & 
+	theirOriginalTask(TOT) & 
+	getUtility(Theirs,TOT, UtilityT) & 
+	UtilityT<UtilityM 
+	<- 
+	willingnessToRisk(.
 

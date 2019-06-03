@@ -186,10 +186,31 @@ sortSet([[MySide,TheirSide]|OtherDeals],ToBeSorted,CurBestDeal,SetOfSortedDeals)
 	sortSet(OtherDeals,ToBeSorted,CurBestDeal,SetOfSortedDeals).
 
 
+	
+getBestDeal(MyBestDeal):-
+	theSetOfNegotiationDeals([CompDeal|DealSet]) & 
+	dealWithBestUtility(CompDeal, DealSet, MyBestDeal)
+	.
+
+	
+dealWithBestUtility(Deal,  [], Deal).
+dealWithBestUtility([MyDeal1,TheirDeal1],  [[MyDeal2,TheirDeal2]|Rest], BestDeal):- 
+	originalTask(OT) &
+	getUtility(MyDeal1, OT, CMyUtility1) &
+	getUtility(MyDeal2, OT, CMyUtility2) &
+	CMyUtility2>CMyUtility1 &
+	dealWithBestUtility([MyDeal2,TheirDeal2], Rest, BestDeal).
+	
+dealWithBestUtility([MyDeal1,TheirDeal1],  [[MyDeal2,TheirDeal2]|Rest], BestDeal):- 
+	originalTask(OT) &
+	getUtility(MyDeal1, OT, CMyUtility1) &
+	getUtility(MyDeal2, OT, CMyUtility2) &
+	dealWithBestUtility([MyDeal1,TheirDeal1], Rest, BestDeal).
+
+
 /* Initial goals */
 //I hate the deal I have been given. I want a better one! Perhaps I can ask z_two...
 !getBetterDeal.
-
 
 
 
@@ -219,4 +240,12 @@ sortSet([[MySide,TheirSide]|OtherDeals],ToBeSorted,CurBestDeal,SetOfSortedDeals)
 	?sortedSet(Deals,SortedSet); //All good deals are now sorted.
 	.print("Agent 1 offers following deals ", SortedSet);
 	+theSetOfNegotiationDeals(SortedSet); //Remember the current negotiation deals.
+	?getBestDeal(BestDeal);
+	.print(BestDeal);
+	+myLastDeal(BestDeal);
+	.send(z_two, tell, theirLastDeal(BestDeal));
+	.send(z_two, achieve, checkDeal);
 	!getBetterDeal.
+	
++!getBetterDeal
+	: 
