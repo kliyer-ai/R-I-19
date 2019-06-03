@@ -1,0 +1,27 @@
+public class Node {
+	
+	private char left;
+	private char right;
+	private int cost;
+
+	public Node(char left, char right, int cost)
+	{	
+		this.left=left;
+		this.right=right;
+		this.cost=cost;
+	}
+	
+	public char getLeft()
+	{
+		return left;
+	}
+	
+	public char getRight()
+	{
+		return right;
+	}
+	
+	public int getCost()
+	{
+		return cost;
+	}
