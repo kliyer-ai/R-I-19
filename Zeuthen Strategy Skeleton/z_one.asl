@@ -215,37 +215,55 @@ dealWithBestUtility([MyDeal1,TheirDeal1],  [[MyDeal2,TheirDeal2]|Rest], BestDeal
 
 //Risk
 
-willingnessToRisk(Mine,Theirs,Risk):-
+//willingnessToRisk(Mine, ProposedMine, Conflict,Risk):-
+	//getUtility(Mine,Conflict, MyUtility) & 
+	//getUtility(ProposedMine,Conflict, ProposedUtility) & 
+	//UtilityM>0 &
+	//Risk = (ProposedUtility - MyUtility)/(ProposedUtility).
+//willingnessToRisk(_,_,1).
+
+
+
+
+
+// proposed deal is coming from the other agent	
+myWillingnessToRisk([MyDeal, _], [ProposedDeal, _], Risk) :-
 	originalTask(OT) &
+	getUtility(MyDeal, OT, MyUtility) & 
+	getUtility(ProposedDeal, OT, ProposedUtility) & 
+	Risk = (MyUtility - ProposedUtility)/(MyUtility) &
+	.print("My Risk ", Risk).
+	
+// proposed deal is coming from the other agent	
+// but we are calculating the WRisk for the other agent 
+// so his perspective becomes my perspective
+theirWillingnessToRisk([_, MyDeal], [_, ProposedDeal], Risk) :- 
 	theirOriginalTask(TOT) & 
-	getUtility(Mine,OT, UtilityM) & 
-	getUtility(Theirs,TOT, UtilityT) & 
-	UtilityM>0 &
-	Risk = (UtilityM - UtilityT)/(UtilityM).
-willingnessToRisk(Mine,Theirs,1).
+	getUtility(MyDeal, TOT, MyUtility) & 
+	getUtility(ProposedDeal, TOT, ProposedUtility) & 
+	Risk = (ProposedUtility - MyUtility)/(ProposedUtility) &
+	.print("Their Risk ", Risk).
+
+	
 
 
-//finding risk changing deal
-//findRiskChangingDeal([], []).
-
-
-findRiskChangingDeal([], []).
-findRiskChangingDeal([[MySide, TheirSide]|Rest], [MySide, TheirSide]) :-
-	willingnessToRisk(MySide, TheirSide, MyRisk) &
-	willingnessToRisk(TheirSide, MySide, TheirRisk) &
-	myLastDeal([_,PTheirs])&
-	cost(PTheirs, PTC) & 
-	cost(TeirSide, TC) & 
-	TC <= PTC & 
+// Proposed is coming from the other agent 
+findRiskChangingDeal([MyDeal|Rest], ProposedDeal, MyDeal) :-
+	myWillingnessToRisk(MyDeal, ProposedDeal, MyRisk) &
+	theirWillingnessToRisk(MyDeal, ProposedDeal, TheirRisk) &
+	MyDeal = [MyLeft, MyRight] &
+	myLastDeal([_,LastRightSide])&
+	cost(MyRight, CostNow) & 
+	cost(LastRightSide, CostLast) & 
+	CostNow <= CostLast & 
 	TheirRisk < MyRisk &
-	not used([MySide, TheirSide]).
+	not used(MyDeal).
 	
-findRiskChangingDeal([[MySide, TheirSide]|Rest], WRiskDeal) :-
-	willingnessToRisk(MySide, TheirSide, MyRisk) &
-	willingnessToRisk(TheirSide, MySide, TheirRisk) &
-	findRiskChangingDeal(Rest, WRiskDeal).
+findRiskChangingDeal([MyDeal|Rest], ProposedDeal, FoundDeal) :-
+	findRiskChangingDeal(Rest, ProposedDeal, FoundDeal) &
+	.print("aa").
 	
-findRiskChangingDeal([[MySide, TheirSide]|Rest], _):-
+findRiskChangingDeal([[MySide, TheirSide]|Rest], _, _):-
 .print("issue finding deal", [MySide, TheirSide]).
 	
 	
@@ -295,7 +313,7 @@ findRiskChangingDeal([[MySide, TheirSide]|Rest], _):-
 +!theirProposal([Mine, Theirs])
 	:
 	myOriginalTask(OT)&
-	myLastDeal([TL, ML])&
+	myLastDeal([ML, TL])&
 	getUtility(ML,OT, UtilityM) & 
 	getUtility(Mine,OT, UtilityT) & 
 	UtilityT>=UtilityM 
@@ -304,29 +322,31 @@ findRiskChangingDeal([[MySide, TheirSide]|Rest], _):-
 	.send(AO, tell, accepted([Mine, Theirs])).
 
 	
-+!theirProposal([Mine, Theirs])
++!theirProposal(ProposedDeal)
 	: 
-	willingnessToRisk(Mine,Theirs, MW) &
-	willingnessToRisk(Theirs,Mine, TW) &
-	MW<=TW &
+	myLastDeal(MyDeal) &
+	myWillingnessToRisk(MyDeal, ProposedDeal, MyRisk) &
+	theirWillingnessToRisk(MyDeal, ProposedDeal, TheirRisk) &
+	MyRisk <= TheirRisk &
 	theSetOfNegotiationDeals(SortedSet) &
-	findRiskChangingDeal(SortedSet, [])
+	not findRiskChangingDeal(SortedSet, _)
 	<- 
 	?agentN(N);
 	.print("Agent ",N," saying conflict deal ").
 	//.send(AO, achieve, theirProposal(CounterDeal)) ;
 
 	
-+!theirProposal([Mine, Theirs])
++!theirProposal(ProposedDeal)
 	: 
-	willingnessToRisk(Mine,Theirs, MW) &
-	willingnessToRisk(Theirs,Mine, TW) &
-	MW<=TW
+	myLastDeal(MyDeal) &
+	myWillingnessToRisk(MyDeal, ProposedDeal, MyRisk) &
+	theirWillingnessToRisk(MyDeal, ProposedDeal, TheirRisk) &
+	MyRisk <= TheirRisk
 	<- 
 	//counterpropose
-	.print("wtr:", MW,TW,[Mine, Theirs] );
+	.print("wtr:", MyRisk, TheirRisk, ProposedDeal);
 	?theSetOfNegotiationDeals(SortedSet);
-	?findRiskChangingDeal(SortedSet, CounterDeal);
+	?findRiskChangingDeal(SortedSet, ProposedDeal, CounterDeal);
 	//.send(z_one, tell, -theirProposal(X));
 	?agentN(N);
 	?agentO(AO);
@@ -335,11 +355,12 @@ findRiskChangingDeal([[MySide, TheirSide]|Rest], _):-
 	+used(CounterDeal);
 	-+myLastDeal(CounterDeal).
 
-+!theirProposal([Mine, Theirs])
++!theirProposal(ProposedDeal)
 	:
-	willingnessToRisk(Mine,Theirs, MW) &
-	willingnessToRisk(Theirs,Mine, TW) &
-	TW>MW
+	myLastDeal(MyDeal) &
+	myWillingnessToRisk(MyDeal, ProposedDeal, MyRisk) &
+	theirWillingnessToRisk(MyDeal, ProposedDeal, TheirRisk) &
+	MyRisk > TheirRisk
 	<- 
 	//await new proposal
 	?agentN(N);

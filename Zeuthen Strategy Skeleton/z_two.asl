@@ -211,40 +211,55 @@ dealWithBestUtility([MyDeal1,TheirDeal1],  [[MyDeal2,TheirDeal2]|Rest], BestDeal
 	
 //Risk
 
-willingnessToRisk(Mine,Theirs,Risk):-
+//willingnessToRisk(Mine, ProposedMine, Conflict,Risk):-
+	//getUtility(Mine,Conflict, MyUtility) & 
+	//getUtility(ProposedMine,Conflict, ProposedUtility) & 
+	//UtilityM>0 &
+	//Risk = (ProposedUtility - MyUtility)/(ProposedUtility).
+//willingnessToRisk(_,_,1).
+
+
+// proposed deal is coming from the other agent	
+myWillingnessToRisk([_, MyDeal], [_, ProposedDeal], Risk) :-
 	originalTask(OT) &
-	theirOriginalTask(TOT) & 
-	getUtility(Mine,OT, UtilityM) & 
-	getUtility(Theirs,TOT, UtilityT) & 
-	UtilityM>0 &
-	Risk = (UtilityM - UtilityT)/(UtilityM).
-willingnessToRisk(Mine,Theirs,1).
-
-
-//finding risk changing deal
-//findRiskChangingDeal([], []).
-
-//findRiskChangingDeal([], []).
-findRiskChangingDeal([[TheirSide, MySide]|Rest], [TheirSide, MySide]) :-
-	willingnessToRisk(MySide, TheirSide, MyRisk) &
-	willingnessToRisk(TheirSide, MySide, TheirRisk) &
-	.print("found ",MyRisk, TheirRisk )&
-	myLastDeal([PTheirs,_])&
-	cost(PTheirs, PTC) & 
-	cost(TeirSide, TC) & 
-	TC <= PTC & 
-	TheirRisk < MyRisk & 
-	not used([TheirSide,MySide]).
+	getUtility(MyDeal, OT, MyUtility) & 
+	getUtility(ProposedDeal, OT, ProposedUtility) & 
+	Risk = (MyUtility - ProposedUtility)/(MyUtility) &
+	.print("My Risk ", Risk).
 	
-findRiskChangingDeal([[TheirSide, MySide]|Rest], WRiskDeal) :-
-	willingnessToRisk(MySide, TheirSide, MyRisk) &
-	willingnessToRisk(TheirSide, MySide, TheirRisk) &
-	.print("looking at",[TheirSide, MySide] )&
-	findRiskChangingDeal(Rest, WRiskDeal).
+// proposed deal is coming from the other agent	
+// but we are calculating the WRisk for the other agent 
+// so his perspective becomes my perspective
+theirWillingnessToRisk([_, MyDeal], [_, ProposedDeal], Risk) :- 
+	theirOriginalTask(TOT) & 
+	getUtility(MyDeal, TOT, MyUtility) & 
+	getUtility(ProposedDeal, TOT, ProposedUtility) & 
+	Risk = (ProposedUtility - MyUtility)/(ProposedUtility) &
+	.print("Their Risk ", Risk).
 
 
-findRiskChangingDeal([[MySide, TheirSide]|Rest], _):-
+
+
+// Proposed is coming from the other agent 
+findRiskChangingDeal([MyDeal|Rest], ProposedDeal, MyDeal) :-
+	myWillingnessToRisk(MyDeal, ProposedDeal, MyRisk) &
+	theirWillingnessToRisk(MyDeal, ProposedDeal, TheirRisk) &
+	MyDeal = [MyLeft, MyRight] &
+	myLastDeal([LastLeftSide,_])&
+	cost(MyLeft, CostNow) & 
+	cost(LastLeftSide, CostLast) & 
+	CostNow <= CostLast & 
+	TheirRisk < MyRisk &
+	not used(MyDeal).
+	
+findRiskChangingDeal([MyDeal|Rest], ProposedDeal, FoundDeal) :-
+	findRiskChangingDeal(Rest, ProposedDeal, FoundDeal).
+	
+findRiskChangingDeal([[MySide, TheirSide]|Rest], _, _):-
 .print("issue finding deal", [MySide, TheirSide]).
+
+
+
 /* Initial goals */
 //I hate the deal I have been given. I want a better one! Perhaps I can ask z_one...
 !getBetterDeal.
@@ -302,20 +317,22 @@ findRiskChangingDeal([[MySide, TheirSide]|Rest], _):-
 
 +!theirProposal([Theirs, Mine])
 	: 
-	willingnessToRisk(Mine,Theirs, MW) &
-	willingnessToRisk(Theirs,Mine, TW) &
-	MW<=TW &
+	myLastDeal(MyDeal) &
+	myWillingnessToRisk(MyDeal, ProposedDeal, MyRisk) &
+	theirWillingnessToRisk(MyDeal, ProposedDeal, TheirRisk) &
+	MyRisk < TheirRisk &
 	theSetOfNegotiationDeals(SortedSet) &
-	not findRiskChangingDeal(SortedSet, [])
+	not findRiskChangingDeal(SortedSet, _)
 	<- 
 	?agentN(N);
 	.print("Agent ",N," saying conflict deal ").
 	
 +!theirProposal([Theirs, Mine])
 	: 
-	willingnessToRisk(Mine,Theirs, MW) &
-	willingnessToRisk(Theirs,Mine, TW) &
-	MW<TW
+	myLastDeal(MyDeal) &
+	myWillingnessToRisk(MyDeal, ProposedDeal, MyRisk) &
+	theirWillingnessToRisk(MyDeal, ProposedDeal, TheirRisk) &
+	MyRisk < TheirRisk
 	<- 
 	//counterpropose
 	.print("wtr:", MW,TW,[Mine, Theirs] );
@@ -329,11 +346,12 @@ findRiskChangingDeal([[MySide, TheirSide]|Rest], _):-
 	+used(CounterDeal);
 	-+myLastDeal(CounterDeal).
 
-+!theirProposal([Theirs, Mine])
++!theirProposal(ProposedDeal)
 	:
-	willingnessToRisk(Mine,Theirs, MW) &
-	willingnessToRisk(Theirs,Mine, TW) &
-	TW>=MW
+	myLastDeal(MyDeal) &
+	myWillingnessToRisk(MyDeal, ProposedDeal, MyRisk) &
+	theirWillingnessToRisk(MyDeal, ProposedDeal, TheirRisk) &
+	MyRisk >= TheirRisk
 	<- 
 	//await new proposal
 	?agentN(N);
