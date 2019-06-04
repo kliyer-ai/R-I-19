@@ -224,9 +224,8 @@ willingnessToRisk(Mine,Theirs,1).
 //finding risk changing deal
 //findRiskChangingDeal([], []).
 
-findRiskChangingDeal([], []).
-findRiskChangingDeal([[TheirSide, MySide]|Rest], W) :-
-	.print(".")&
+//findRiskChangingDeal([], []).
+findRiskChangingDeal([[TheirSide, MySide]|Rest], [TheirSide, MySide]) :-
 	willingnessToRisk(MySide, TheirSide, MyRisk) &
 	willingnessToRisk(TheirSide, MySide, TheirRisk) &
 	.print("found ",MyRisk, TheirRisk )&
@@ -235,8 +234,7 @@ findRiskChangingDeal([[TheirSide, MySide]|Rest], W) :-
 	cost(TeirSide, TC) & 
 	TC <= PTC & 
 	TheirRisk < MyRisk & 
-	not used([TheirSide,MySide]) &
-	W = [TheirSide, MySide].
+	not used([TheirSide,MySide]).
 	
 findRiskChangingDeal([[TheirSide, MySide]|Rest], WRiskDeal) :-
 	willingnessToRisk(MySide, TheirSide, MyRisk) &
@@ -308,7 +306,7 @@ findRiskChangingDeal([[MySide, TheirSide]|Rest], _):-
 	willingnessToRisk(Theirs,Mine, TW) &
 	MW<=TW &
 	theSetOfNegotiationDeals(SortedSet) &
-	findRiskChangingDeal(SortedSet, [])
+	not findRiskChangingDeal(SortedSet, [])
 	<- 
 	?agentN(N);
 	.print("Agent ",N," saying conflict deal ").
