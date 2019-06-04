@@ -71,6 +71,10 @@ cost([b,c,d,e,f],27).
 //I remember my task set. During experiments, make sure to adjust the task.
 originalTask([d,e]).
 
+//HELPER
+agentN(z_two).
+agentO(z_one).
+
 //Checking if two task sets are indeed valid re-distribution. This code requires
 // having the total task set (b,c,d,e,f for example). You will need a way for totalTask
 //to get the total task set when agents need to calculate the total task set by themselves.
@@ -184,6 +188,26 @@ sortSet([[TheirSide,MySide]|OtherDeals],ToBeSorted,[CurTheirHigh,CurMyHigh],SetO
 sortSet([[TheirSide,MySide]|OtherDeals],ToBeSorted,CurBestDeal,SetOfSortedDeals) :-
 	sortSet(OtherDeals,ToBeSorted,CurBestDeal,SetOfSortedDeals).
 
+//Finding best deal
+getBestDeal(MyBestDeal):-
+	theSetOfNegotiationDeals([MyBestDeal|DealSet]) 
+	.
+
+//look for best utility
+dealWithBestUtility(Deal,  [], Deal).
+dealWithBestUtility([MyDeal1,TheirDeal1],  [[MyDeal2,TheirDeal2]|Rest], BestDeal):- 
+	originalTask(OT) &
+	getUtility(MyDeal1, OT, CMyUtility1) &
+	getUtility(MyDeal2, OT, CMyUtility2) &
+	CMyUtility2>CMyUtility1 &
+	dealWithBestUtility([MyDeal2,TheirDeal2], Rest, BestDeal).
+	
+dealWithBestUtility([MyDeal1,TheirDeal1],  [[MyDeal2,TheirDeal2]|Rest], BestDeal):- 
+	originalTask(OT) &
+	getUtility(MyDeal1, OT, CMyUtility1) &
+	getUtility(MyDeal2, OT, CMyUtility2) &
+	dealWithBestUtility([MyDeal1,TheirDeal1], Rest, BestDeal).
+
 	
 //Risk
 
@@ -192,32 +216,37 @@ willingnessToRisk(Mine,Theirs,Risk):-
 	theirOriginalTask(TOT) & 
 	getUtility(Mine,OT, UtilityM) & 
 	getUtility(Theirs,TOT, UtilityT) & 
-	Risk = (UtilityM - UtilityT)/UtilityM
-.
-
+	UtilityM>0 &
+	Risk = (UtilityM - UtilityT)/(UtilityM).
+willingnessToRisk(Mine,Theirs,1).
 
 
 //finding risk changing deal
-findRiskChangingDeal([], []).
+//findRiskChangingDeal([], []).
 
-findRiskChangingDeal([[MySide, TheirSide]|Rest], TheirRisk) :-
+findRiskChangingDeal([], []).
+findRiskChangingDeal([[TheirSide, MySide]|Rest], W) :-
+	.print(".")&
 	willingnessToRisk(MySide, TheirSide, MyRisk) &
 	willingnessToRisk(TheirSide, MySide, TheirRisk) &
+	.print("found ",MyRisk, TheirRisk )&
 	myLastDeal([PTheirs,_])&
 	cost(PTheirs, PTC) & 
 	cost(TeirSide, TC) & 
 	TC <= PTC & 
-	TheirRisk < MyRisk.
+	TheirRisk < MyRisk & 
+	not used([TheirSide,MySide]) &
+	W = [TheirSide, MySide].
 	
-findRiskChangingDeal([[MySide, TheirSide]|Rest], WRiskDeal) :-
+findRiskChangingDeal([[TheirSide, MySide]|Rest], WRiskDeal) :-
 	willingnessToRisk(MySide, TheirSide, MyRisk) &
 	willingnessToRisk(TheirSide, MySide, TheirRisk) &
-	TC > PTC & 
-	TheirRisk > MyRisk & 
+	.print("looking at",[TheirSide, MySide] )&
 	findRiskChangingDeal(Rest, WRiskDeal).
-	
 
 
+findRiskChangingDeal([[MySide, TheirSide]|Rest], _):-
+.print("issue finding deal", [MySide, TheirSide]).
 /* Initial goals */
 //I hate the deal I have been given. I want a better one! Perhaps I can ask z_one...
 !getBetterDeal.
@@ -248,54 +277,77 @@ findRiskChangingDeal([[MySide, TheirSide]|Rest], WRiskDeal) :-
 	+theirOriginalTask(Answer);
 	.print("Agent 1 told Agent 2 their task was ", Answer);
 	?setOfDeals(Deals); //Finding all good deals, but they are unsorted.
-	?sortedSet(x,SortedSet); //All good deals are now sorted.
+	?sortedSet(Deals,SortedSet); //All good deals are now sorted.
 	.print("Agent 2 offers following deals ", SortedSet);
 	+theSetOfNegotiationDeals(SortedSet); //Remember the current negotiation deals.
 	?getBestDeal(BestDeal);
 	.print(BestDeal);
 	+myLastDeal(BestDeal);
-	.send(z_two, achieve, theirProposal(BestDeal));
+	+used(BestDeal);
+	?agentO(AO);
+	.send(AO, achieve, theirProposal(BestDeal))
 	//.send(z_two, achieve, checkDeal);
-	!getBetterDeal.
-	
-+!theirProposal([Theirs, Mine])
-	: originalTask(OT) &
-	theirOriginalTask(TOT) & 
-	getUtility(Mine,OT, UtilityM) & 
-	getUtility(Theirs,TOT, UtilityT) & 
-	UtilityT>=UtilityM 
-	<- 
-	.send(z_one, tell, accepted([Theirs, Mine])).
+	.
 
 	
+//////////////////////////Their Proposal/////////////////////////////
 +!theirProposal([Theirs, Mine])
-	: originalTask(OT) &
-	theirOriginalTask(TOT) & 
-	getUtility(Mine,OT, UtilityM) & 
-	theirOriginalTask(TOT) & 
-	getUtility(Theirs,TOT, UtilityT) & 
-	UtilityT<UtilityM & 
+	:
+	myOriginalTask(OT)&
+	myLastDeal([TL, ML])&
+	getUtility(ML,OT, UtilityM) & 
+	getUtility(Mine,OT, UtilityT) & 
+	UtilityT>=UtilityM 
+	<- 
+	?agentO(AO);
+	.send(AO, tell, accepted([Theirs, Mine])).
+
++!theirProposal([Theirs, Mine])
+	: 
+	willingnessToRisk(Mine,Theirs, MW) &
+	willingnessToRisk(Theirs,Mine, TW) &
+	MW<=TW &
+	theSetOfNegotiationDeals(SortedSet) &
+	findRiskChangingDeal(SortedSet, [])
+	<- 
+	?agentN(N);
+	.print("Agent ",N," saying conflict deal ").
+	
++!theirProposal([Theirs, Mine])
+	: 
 	willingnessToRisk(Mine,Theirs, MW) &
 	willingnessToRisk(Theirs,Mine, TW) &
 	MW<TW
 	<- 
 	//counterpropose
-	?findRiskChangingDeal(CounterDeal);
+	.print("wtr:", MW,TW,[Mine, Theirs] );
+	?theSetOfNegotiationDeals(SortedSet);
+	?findRiskChangingDeal(SortedSet, CounterDeal);
 	//.send(z_one, tell, -theirProposal(X));
-	.send(z_one, tell, theirProposal(CounterDeal)) &
+	?agentN(N);
+	?agentO(AO);
+	.print("Agent ",N," making counter proposal", CounterDeal);
+	.send(AO, achieve, theirProposal(CounterDeal)) ;
+	+used(CounterDeal);
 	-+myLastDeal(CounterDeal).
 
 +!theirProposal([Theirs, Mine])
-	: originalTask(OT) &
-	theirOriginalTask(TOT) & 
-	getUtility(Mine,OT, UtilityM) & 
-	theirOriginalTask(TOT) & 
-	getUtility(Theirs,TOT, UtilityT) & 
-	UtilityT<UtilityM & 
+	:
 	willingnessToRisk(Mine,Theirs, MW) &
 	willingnessToRisk(Theirs,Mine, TW) &
-	TW>MW
+	TW>=MW
 	<- 
 	//await new proposal
-	.print("Agent 2 awaiting counter proposal").
+	?agentN(N);
+	?myLastDeal(Deal);
+	?agentO(AO);
+	.print("Agent ",N," awaiting counter proposal ", Deal);
+	.send(AO, achieve, theirProposal(Deal))  
+	.
+
+//////////////////////////Their Proposal End/////////////////////////////
+		
++accepted(X):
+	.print("Deal Accepted ", X)	
+.
 

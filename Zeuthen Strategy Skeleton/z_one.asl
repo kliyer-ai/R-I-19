@@ -71,6 +71,11 @@ cost([b,c,d,e,f],27).
 //I remember my task set. During experiments, make sure to adjust the task.
 originalTask([b,c,f]).
 
+
+//HELPER
+agentN(z_one).
+agentO(z_two).
+
 //Checking if two task sets are indeed valid re-distribution. This code requires
 // having the total task set (b,c,d,e,f for example). You will need a way for totalTask
 //to get the total task set when agents need to calculate the total task set by themselves.
@@ -187,9 +192,9 @@ sortSet([[MySide,TheirSide]|OtherDeals],ToBeSorted,CurBestDeal,SetOfSortedDeals)
 
 
 	
+//Finding best deal
 getBestDeal(MyBestDeal):-
-	theSetOfNegotiationDeals([CompDeal|DealSet]) & 
-	dealWithBestUtility(CompDeal, DealSet, MyBestDeal)
+	theSetOfNegotiationDeals([MyBestDeal|DealSet]) 
 	.
 
 	
@@ -208,6 +213,43 @@ dealWithBestUtility([MyDeal1,TheirDeal1],  [[MyDeal2,TheirDeal2]|Rest], BestDeal
 	dealWithBestUtility([MyDeal1,TheirDeal1], Rest, BestDeal).
 
 
+//Risk
+
+willingnessToRisk(Mine,Theirs,Risk):-
+	originalTask(OT) &
+	theirOriginalTask(TOT) & 
+	getUtility(Mine,OT, UtilityM) & 
+	getUtility(Theirs,TOT, UtilityT) & 
+	UtilityM>0 &
+	Risk = (UtilityM - UtilityT)/(UtilityM).
+willingnessToRisk(Mine,Theirs,1).
+
+
+//finding risk changing deal
+//findRiskChangingDeal([], []).
+
+
+findRiskChangingDeal([], []).
+findRiskChangingDeal([[MySide, TheirSide]|Rest], [MySide, TheirSide]) :-
+	willingnessToRisk(MySide, TheirSide, MyRisk) &
+	willingnessToRisk(TheirSide, MySide, TheirRisk) &
+	myLastDeal([_,PTheirs])&
+	cost(PTheirs, PTC) & 
+	cost(TeirSide, TC) & 
+	TC <= PTC & 
+	TheirRisk < MyRisk &
+	not used([MySide, TheirSide]).
+	
+findRiskChangingDeal([[MySide, TheirSide]|Rest], WRiskDeal) :-
+	willingnessToRisk(MySide, TheirSide, MyRisk) &
+	willingnessToRisk(TheirSide, MySide, TheirRisk) &
+	findRiskChangingDeal(Rest, WRiskDeal).
+	
+findRiskChangingDeal([[MySide, TheirSide]|Rest], _):-
+.print("issue finding deal", [MySide, TheirSide]).
+	
+	
+	
 /* Initial goals */
 //I hate the deal I have been given. I want a better one! Perhaps I can ask z_two...
 !getBetterDeal.
@@ -243,11 +285,72 @@ dealWithBestUtility([MyDeal1,TheirDeal1],  [[MyDeal2,TheirDeal2]|Rest], BestDeal
 	?getBestDeal(BestDeal);
 	.print(BestDeal);
 	+myLastDeal(BestDeal);
-	.send(z_two, tell, theirLastDeal(BestDeal));
-	.send(z_two, achieve, checkDeal);
-	!getBetterDeal.
+	+used(BestDeal);
+	?agentO(AO);
+	.send(AO, achieve, theirProposal(BestDeal)).
 
 	
+	
+//////////////////////////Their Proposal/////////////////////////////
++!theirProposal([Mine, Theirs])
+	:
+	myOriginalTask(OT)&
+	myLastDeal([TL, ML])&
+	getUtility(ML,OT, UtilityM) & 
+	getUtility(Mine,OT, UtilityT) & 
+	UtilityT>=UtilityM 
+	<- 
+	?agentO(AO);
+	.send(AO, tell, accepted([Mine, Theirs])).
+
+	
++!theirProposal([Mine, Theirs])
+	: 
+	willingnessToRisk(Mine,Theirs, MW) &
+	willingnessToRisk(Theirs,Mine, TW) &
+	MW<=TW &
+	theSetOfNegotiationDeals(SortedSet) &
+	findRiskChangingDeal(SortedSet, [])
+	<- 
+	?agentN(N);
+	.print("Agent ",N," saying conflict deal ").
+	//.send(AO, achieve, theirProposal(CounterDeal)) ;
+
+	
++!theirProposal([Mine, Theirs])
+	: 
+	willingnessToRisk(Mine,Theirs, MW) &
+	willingnessToRisk(Theirs,Mine, TW) &
+	MW<=TW
+	<- 
+	//counterpropose
+	.print("wtr:", MW,TW,[Mine, Theirs] );
+	?theSetOfNegotiationDeals(SortedSet);
+	?findRiskChangingDeal(SortedSet, CounterDeal);
+	//.send(z_one, tell, -theirProposal(X));
+	?agentN(N);
+	?agentO(AO);
+	.print("Agent ",N," making counter proposal", CounterDeal);
+	.send(AO, achieve, theirProposal(CounterDeal)) ;
+	+used(CounterDeal);
+	-+myLastDeal(CounterDeal).
+
++!theirProposal([Mine, Theirs])
+	:
+	willingnessToRisk(Mine,Theirs, MW) &
+	willingnessToRisk(Theirs,Mine, TW) &
+	TW>MW
+	<- 
+	//await new proposal
+	?agentN(N);
+	?myLastDeal(Deal);
+	?agentO(AO);
+	.print("Agent ",N," awaiting counter proposal ", Deal);
+	.send(AO, achieve, theirProposal(Deal)) 
+	.
+
+//////////////////////////Their Proposal End/////////////////////////////
 +accepted(X):
 	.print("Deal Accepted ", X)	
 .
+
