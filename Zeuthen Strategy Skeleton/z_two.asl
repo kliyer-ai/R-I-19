@@ -188,6 +188,8 @@ sortSet([[TheirSide,MySide]|OtherDeals],ToBeSorted,[CurTheirHigh,CurMyHigh],SetO
 sortSet([[TheirSide,MySide]|OtherDeals],ToBeSorted,CurBestDeal,SetOfSortedDeals) :-
 	sortSet(OtherDeals,ToBeSorted,CurBestDeal,SetOfSortedDeals).
 
+	
+	
 //Finding best deal
 getBestDeal(MyBestDeal):-
 	theSetOfNegotiationDeals([MyBestDeal|DealSet]) 
@@ -211,34 +213,26 @@ dealWithBestUtility([MyDeal1,TheirDeal1],  [[MyDeal2,TheirDeal2]|Rest], BestDeal
 	
 //Risk
 
-//willingnessToRisk(Mine, ProposedMine, Conflict,Risk):-
-	//getUtility(Mine,Conflict, MyUtility) & 
-	//getUtility(ProposedMine,Conflict, ProposedUtility) & 
-	//UtilityM>0 &
-	//Risk = (ProposedUtility - MyUtility)/(ProposedUtility).
-//willingnessToRisk(_,_,1).
-
-
 // proposed deal is coming from the other agent	
 myWillingnessToRisk([_, MyDeal], [_, ProposedDeal], Risk) :-
 	originalTask(OT) &
 	getUtility(MyDeal, OT, MyUtility) & 
 	getUtility(ProposedDeal, OT, ProposedUtility) & 
-	Risk = (MyUtility - ProposedUtility)/(MyUtility) &
-	.print("My Risk ", Risk).
+	Risk = (MyUtility - ProposedUtility)/(MyUtility).
 	
 // proposed deal is coming from the other agent	
 // but we are calculating the WRisk for the other agent 
 // so his perspective becomes my perspective
-theirWillingnessToRisk([_, MyDeal], [_, ProposedDeal], Risk) :- 
+theirWillingnessToRisk([MyDeal, _], [ProposedDeal, _], Risk) :- 
 	theirOriginalTask(TOT) & 
 	getUtility(MyDeal, TOT, MyUtility) & 
 	getUtility(ProposedDeal, TOT, ProposedUtility) & 
-	Risk = (ProposedUtility - MyUtility)/(ProposedUtility) &
-	.print("Their Risk ", Risk).
+	Risk = (ProposedUtility - MyUtility)/(ProposedUtility).
 
 
 
+	
+findRiskChangingDeal([], _, _) :- fail.
 
 // Proposed is coming from the other agent 
 findRiskChangingDeal([MyDeal|Rest], ProposedDeal, MyDeal) :-
@@ -249,21 +243,18 @@ findRiskChangingDeal([MyDeal|Rest], ProposedDeal, MyDeal) :-
 	cost(MyLeft, CostNow) & 
 	cost(LastLeftSide, CostLast) & 
 	CostNow <= CostLast & 
-	TheirRisk < MyRisk &
-	not used(MyDeal).
+	TheirRisk < MyRisk.// &
+	//not used(MyDeal).
 	
 findRiskChangingDeal([MyDeal|Rest], ProposedDeal, FoundDeal) :-
-	findRiskChangingDeal(Rest, ProposedDeal, FoundDeal).
+	.print("recurse findRiskChangingDeal") &
+	findRiskChangingDeal(Rest, ProposedDeal, FoundDeal) .
 	
-findRiskChangingDeal([[MySide, TheirSide]|Rest], _, _):-
-.print("issue finding deal", [MySide, TheirSide]).
-
 
 
 /* Initial goals */
 //I hate the deal I have been given. I want a better one! Perhaps I can ask z_one...
 !getBetterDeal.
-
 
 
 
@@ -294,40 +285,44 @@ findRiskChangingDeal([[MySide, TheirSide]|Rest], _, _):-
 	.print("Agent 2 offers following deals ", SortedSet);
 	+theSetOfNegotiationDeals(SortedSet); //Remember the current negotiation deals.
 	?getBestDeal(BestDeal);
-	.print(BestDeal);
+	.print("My initial offer is: ", BestDeal);
 	+myLastDeal(BestDeal);
-	+used(BestDeal);
 	?agentO(AO);
+	.wait(1000);
 	.send(AO, achieve, theirProposal(BestDeal))
-	//.send(z_two, achieve, checkDeal);
-	.
+.
 
 	
 //////////////////////////Their Proposal/////////////////////////////
-+!theirProposal([Theirs, Mine])
++!theirProposal([ProposedTheirs, ProposedMine])[source(OtherAgent)]
 	:
 	myOriginalTask(OT)&
-	myLastDeal([TL, ML])&
-	getUtility(ML,OT, UtilityM) & 
-	getUtility(Mine,OT, UtilityT) & 
-	UtilityT>=UtilityM 
+	myLastDeal([MyTheirs, MyMine])&
+	getUtility(MyMine,OT, MyUtility) & 
+	getUtility(ProposedMine,OT, TheirUtility) & 
+	TheirUtility>=MyUtility 
 	<- 
-	?agentO(AO);
-	.send(AO, tell, accepted([Theirs, Mine])).
+	.send(OtherAgent, tell, accepted([ProposedTheirs, ProposedMine]));
+	+accepted([ProposedTheirs, ProposedMine])
+	.
+	
 
-+!theirProposal([Theirs, Mine])
++!theirProposal(ProposedDeal)[source(OtherAgent)]
 	: 
 	myLastDeal(MyDeal) &
 	myWillingnessToRisk(MyDeal, ProposedDeal, MyRisk) &
 	theirWillingnessToRisk(MyDeal, ProposedDeal, TheirRisk) &
 	MyRisk < TheirRisk &
 	theSetOfNegotiationDeals(SortedSet) &
-	not findRiskChangingDeal(SortedSet, _)
+	not findRiskChangingDeal(SortedSet, ProposedDeal, _)
 	<- 
-	?agentN(N);
-	.print("Agent ",N," saying conflict deal ").
+	.print("My Risk: ", MyRisk, " Their Risk: ",TheirRisk, " Deal: ", ProposedDeal);
+	.send(OtherAgent, tell, conflictDeal);
+	+conflictDeal
+.
+
 	
-+!theirProposal([Theirs, Mine])
++!theirProposal(ProposedDeal)[source(OtherAgent)]
 	: 
 	myLastDeal(MyDeal) &
 	myWillingnessToRisk(MyDeal, ProposedDeal, MyRisk) &
@@ -335,18 +330,19 @@ findRiskChangingDeal([[MySide, TheirSide]|Rest], _, _):-
 	MyRisk < TheirRisk
 	<- 
 	//counterpropose
-	.print("wtr:", MW,TW,[Mine, Theirs] );
+	.print("My Risk: ", MyRisk, " Their Risk: ",TheirRisk, " Deal: ", ProposedDeal);
 	?theSetOfNegotiationDeals(SortedSet);
-	?findRiskChangingDeal(SortedSet, CounterDeal);
-	//.send(z_one, tell, -theirProposal(X));
-	?agentN(N);
-	?agentO(AO);
-	.print("Agent ",N," making counter proposal", CounterDeal);
-	.send(AO, achieve, theirProposal(CounterDeal)) ;
-	+used(CounterDeal);
-	-+myLastDeal(CounterDeal).
+	?findRiskChangingDeal(SortedSet, ProposedDeal, CounterDeal);
+	.print("making counter proposal ", CounterDeal);
+	.wait(1000);
+	.send(OtherAgent, achieve, theirProposal(CounterDeal)) ;
+	-+myLastDeal(CounterDeal);
+	?myLastDeal(DD);
+	.print("[debug] My last deal was: ", DD)
+.
 
-+!theirProposal(ProposedDeal)
+
++!theirProposal(ProposedDeal)[source(OtherAgent)]
 	:
 	myLastDeal(MyDeal) &
 	myWillingnessToRisk(MyDeal, ProposedDeal, MyRisk) &
@@ -354,16 +350,21 @@ findRiskChangingDeal([[MySide, TheirSide]|Rest], _, _):-
 	MyRisk >= TheirRisk
 	<- 
 	//await new proposal
-	?agentN(N);
+	.print("My Risk: ", MyRisk, " Their Risk: ",TheirRisk, " Deal: ", ProposedDeal);
 	?myLastDeal(Deal);
-	?agentO(AO);
-	.print("Agent ",N," awaiting counter proposal ", Deal);
-	.send(AO, achieve, theirProposal(Deal))  
-	.
-
-//////////////////////////Their Proposal End/////////////////////////////
-		
-+accepted(X):
-	.print("Deal Accepted ", X)	
+	.print("awaiting counter proposal ", Deal);
+	.wait(1000);
 .
 
+
+//////////////////////////Their Proposal End/////////////////////////////
++accepted(X) 
+	<-
+	.print("Deal Accepted: ", X)	
+.
+
++conflictDeal
+	<-
+	?originalTask(Deal) ;
+	.print("Agreeing on conflict Deal: ", Deal)
+.
