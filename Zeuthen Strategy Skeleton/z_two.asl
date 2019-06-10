@@ -69,11 +69,11 @@ cost([c,d,e,f],27).
 cost([b,c,d,e,f],27).
 
 //I remember my task set. During experiments, make sure to adjust the task.
-originalTask([d,e]).
+// gets it from other agent
 
 //HELPER
-agentN(z_two).
-agentO(z_one).
+myName(z_two).
+yourName(z_one).
 iAmNotLazy.
 
 //Checking if two task sets are indeed valid re-distribution. This code requires
@@ -229,22 +229,37 @@ theirWillingnessToRisk([MyDeal, _], [ProposedDeal, _], Risk) :-
 	getUtility(MyDeal, TOT, MyUtility) & 
 	getUtility(ProposedDeal, TOT, ProposedUtility) & 
 	Risk = (ProposedUtility - MyUtility)/(ProposedUtility).
+	
+	
+getWillingnessToRisk(ProposedDeal, MyWillingness, TheirWillingness) :-
+	myLastDeal(MyDeal) &
+	myWillingnessToRisk(MyDeal, ProposedDeal, MyWillingness) &
+	theirWillingnessToRisk(MyDeal, ProposedDeal, TheirWillingness)
+.
 
 
+checkAcceptance([ProposedTheirs, ProposedMine]) :-
+	originalTask(OT)&
+	myLastDeal([MyTheirs, MyMine])&
+	getUtility(MyMine, OT, MyUtility) & 
+	getUtility(ProposedMine, OT, TheirUtility) &
+	TheirUtility>=MyUtility
+.
+checkAcceptance(_) :- fail.
 
 	
 findRiskChangingDeal([], _, _) :- fail.
 
 // Proposed is coming from the other agent 
 findRiskChangingDeal([MyDeal|Rest], ProposedDeal, MyDeal) :-
-	myWillingnessToRisk(MyDeal, ProposedDeal, MyRisk) &
-	theirWillingnessToRisk(MyDeal, ProposedDeal, TheirRisk) &
+	myWillingnessToRisk(MyDeal, ProposedDeal, MyWillingness) &
+	theirWillingnessToRisk(MyDeal, ProposedDeal, TheirWillingness) &
 	MyDeal = [MyLeft, MyRight] &
 	myLastDeal([LastLeftSide,_])&
 	cost(MyLeft, CostNow) & 
 	cost(LastLeftSide, CostLast) & 
 	CostNow <= CostLast & 
-	TheirRisk <= MyRisk &
+	TheirWillingness <= MyWillingness &
 	not used(MyDeal).
 	
 findRiskChangingDeal([MyDeal|Rest], ProposedDeal, FoundDeal) :-
@@ -280,7 +295,9 @@ findRiskChangingDeal([MyDeal|Rest], ProposedDeal, FoundDeal) :-
 	//Note that here, we only want the Answer, whereas this function would normally return 'originalTask(Answer)[source: z_one]
 	//By specifying originalTask in the return, we can seperate Answer from the rest and make a new belief with it.
 	+theirOriginalTask(Answer);
-	.print("Agent 1 told Agent 2 their task was ", Answer);
+	.print("Agent 1's task is ", Answer);
+	.difference([b, c, d, e, f], Answer, MyTask);
+	+originalTask(MyTask);
 	?setOfDeals(Deals); //Finding all good deals, but they are unsorted.
 	?sortedSet(Deals,SortedSet); //All good deals are now sorted.
 	.print("Agent 2 offers following deals ", SortedSet);
@@ -288,9 +305,9 @@ findRiskChangingDeal([MyDeal|Rest], ProposedDeal, FoundDeal) :-
 	?getBestDeal(BestDeal);
 	.print("My initial offer is: ", BestDeal);
 	+myLastDeal(BestDeal);
-	?agentO(AO);
-	.wait(1000);
-	.send(AO, achieve, theirProposal(BestDeal))
+	.wait(1000) // wait so other agent has time to set everything up
+	?yourName(OtherAgent);
+	.send(OtherAgent, achieve, whoStarts(BestDeal))
 .
 
 
@@ -300,98 +317,90 @@ findRiskChangingDeal([MyDeal|Rest], ProposedDeal, FoundDeal) :-
 .
 
 	
-//////////////////////////Their Proposal/////////////////////////////
-+!theirProposal(ProposedDeal)[source(OtherAgent)]
+////////////////////////// Negotiation /////////////////////////////
+
+// Determine who should initially act
++!whoStarts(ProposedDeal)
 	:
-	myLastDeal(MyDeal) &
-	myWillingnessToRisk(MyDeal, ProposedDeal, MyRisk) &
-	theirWillingnessToRisk(MyDeal, ProposedDeal, TheirRisk) &
-	MyRisk == TheirRisk&
-	iAmLazy
+	iAmLazy &
+	getWillingnessToRisk(ProposedDeal, MyWillingness, TheirWillingness) &
+	MyWillingness < TheirWillingness // I have to act so do it!
 	<-
-	.print("I am lazy");
-	-iAmLazy
-.
-	
-+!theirProposal(ProposedDeal)[source(OtherAgent)]
-	:
-	iAmLazy
-	<-
-	-iAmLazy;
-	.print("No reason to be lazy today");
 	!theirProposal(ProposedDeal)
 .
 
 
-+!theirProposal([ProposedTheirs, ProposedMine])[source(OtherAgent)]
++!whoStarts(ProposedDeal)
 	:
-	originalTask(OT)&
-	myLastDeal([MyTheirs, MyMine])&
-	getUtility(MyMine,OT, MyUtility) & 
-	getUtility(ProposedMine,OT, TheirUtility) & 
-	.print("My last util: ", MyUtility, " Theirs: ", TheirUtility) &
-	TheirUtility>=MyUtility 
+	iAmLazy // Other agent will act
+	<-
+	-iAmLazy
+.
+
++!whoStarts(ProposedDeal)
+	<-
+	!theirProposal(ProposedDeal) // I am not lazy so act!
+.
+// END
+
+
+
++!theirProposal(ProposedDeal)
+	:
+	checkAcceptance(ProposedDeal)
 	<- 
-	.send(OtherAgent, tell, accepted([ProposedTheirs, ProposedMine]));
-	+accepted([ProposedTheirs, ProposedMine])
-	.
+	?yourName(OtherAgent);
+	.send(OtherAgent, tell, accept(ProposedDeal));
+	+accept(ProposedDeal)
+.
 
 
-+!theirProposal(ProposedDeal)[source(OtherAgent)]
+// less willing to risk but cannot find better deal that would change willingness to risk	
++!theirProposal(ProposedDeal)
 	: 
-	myLastDeal(MyDeal) &
-	myWillingnessToRisk(MyDeal, ProposedDeal, MyRisk) &
-	theirWillingnessToRisk(MyDeal, ProposedDeal, TheirRisk) &
-	MyRisk < TheirRisk &
+	getWillingnessToRisk(ProposedDeal, MyWillingness, TheirWillingness) &
+	MyWillingness < TheirWillingness &
 	theSetOfNegotiationDeals(SortedSet) &
 	not findRiskChangingDeal(SortedSet, ProposedDeal, _)
 	<- 
-	.print("1 My Risk: ", MyRisk, " Their Risk: ",TheirRisk, " Deal: ", ProposedDeal);
+	?yourName(OtherAgent);
+	.print("1 My Risk: ", MyWillingness, " Their Risk: ",TheirWillingness, " Deal: ", ProposedDeal);
 	.send(OtherAgent, tell, conflictDeal);
 	+conflictDeal
 .
 
 	
-+!theirProposal(ProposedDeal)[source(OtherAgent)]
++!theirProposal(ProposedDeal)
 	: 
-	myLastDeal(MyDeal) &
-	myWillingnessToRisk(MyDeal, ProposedDeal, MyRisk) &
-	theirWillingnessToRisk(MyDeal, ProposedDeal, TheirRisk) &
-	MyRisk < TheirRisk
+	getWillingnessToRisk(ProposedDeal, MyWillingness, TheirWillingness) &
+	MyWillingness < TheirWillingness
 	<- 
-	//counterpropose
-	.print("2 My Risk: ", MyRisk, " Their Risk: ",TheirRisk, " Deal: ", ProposedDeal);
+	?yourName(OtherAgent);
+	.print("2 My Risk: ", MyWillingness, " Their Risk: ",TheirWillingness, " Deal: ", ProposedDeal);
 	?theSetOfNegotiationDeals(SortedSet);
 	?findRiskChangingDeal(SortedSet, ProposedDeal, CounterDeal);
-	.print("making counter proposal ", CounterDeal);
-	.wait(1000);
+	.print("making counter proposal", CounterDeal);
 	.send(OtherAgent, achieve, theirProposal(CounterDeal)) ;
 	-+myLastDeal(CounterDeal);
-	?myLastDeal(DD);
-	.print("[debug] My last deal was: ", DD)
 .
 
 
-+!theirProposal(ProposedDeal)[source(OtherAgent)]
++!theirProposal(ProposedDeal)
 	:
-	myLastDeal(MyDeal) &
-	myWillingnessToRisk(MyDeal, ProposedDeal, MyRisk) &
-	theirWillingnessToRisk(MyDeal, ProposedDeal, TheirRisk) &
-	MyRisk > TheirRisk
+	getWillingnessToRisk(ProposedDeal, MyWillingness, TheirWillingness) &
+	MyWillingness > TheirWillingness
 	<- 
 	//await new proposal
-	.print("3 My Risk: ", MyRisk, " Their Risk: ",TheirRisk, " Deal: ", ProposedDeal);
+	.print("3 My Risk: ", MyWillingness, " Their Risk: ",TheirWillingness, " Deal: ", ProposedDeal);
 	?myLastDeal(Deal);
-	.print("awaiting counter proposal ", Deal);
-	.wait(1000);
+	.print("awaiting counter proposal. My last proposal: ", Deal);
 .
 
-+!theirProposal(ProposedDeal)[source(OtherAgent)]
++!theirProposal(ProposedDeal)
 	:
-	myLastDeal(MyDeal) &
-	myWillingnessToRisk(MyDeal, ProposedDeal, MyRisk) &
-	theirWillingnessToRisk(MyDeal, ProposedDeal, TheirRisk) &
-	MyRisk == TheirRisk&
+	getWillingnessToRisk(ProposedDeal, MyWillingness, TheirWillingness) &
+	MyWillingness == TheirWillingness &
+	.print("Flipping coin") &
 	.random(Coin) &
 	Coin <=0.5
 	<- 
@@ -400,66 +409,56 @@ findRiskChangingDeal([MyDeal|Rest], ProposedDeal, FoundDeal) :-
 .
 
 
-+!theirProposal(ProposedDeal)[source(OtherAgent)]
++!theirProposal(ProposedDeal)
 	:
-	myLastDeal(MyDeal) &
-	myWillingnessToRisk(MyDeal, ProposedDeal, MyRisk) &
-	theirWillingnessToRisk(MyDeal, ProposedDeal, TheirRisk) &
-	MyRisk == TheirRisk
+	getWillingnessToRisk(ProposedDeal, MyWillingness, TheirWillingness) &
+	MyWillingness == TheirWillingness
 	<- 
+	?yourName(OtherAgent);
 	?myLastDeal(Deal);
 	.send(OtherAgent, achieve, coinChoseMe(Deal))
 .
 
-+!coinChoseMe([ProposedTheirs, ProposedMine])
++!coinChoseMe(ProposedDeal)
 	:
-	originalTask(OT)&
-	myLastDeal([MyTheirs, MyMine])&
-	getUtility(MyMine,OT, MyUtility) & 
-	getUtility(ProposedMine,OT, TheirUtility) & 
-	.print("C My last util: ", MyUtility, " Theirs: ", TheirUtility) &
-	TheirUtility>=MyUtility 
+	checkAcceptance(ProposedDeal)
 	<- 
-	?agentO(OtherAgent);
-	.send(OtherAgent, tell, accepted([ProposedTheirs, ProposedMine]));
-	+accepted([ProposedTheirs, ProposedMine])
+	?yourName(OtherAgent);
+	.send(OtherAgent, tell, accept(ProposedDeal));
+	+accept(ProposedDeal)
 .
-
 
 +!coinChoseMe(ProposedDeal)
 	:
 	theSetOfNegotiationDeals(SortedSet) &
 	not findRiskChangingDeal(SortedSet, ProposedDeal, _)
 	<-
-	?agentO(OtherAgent);
+	?yourName(OtherAgent);
 	.send(OtherAgent, tell, conflictDeal);
 	+conflictDeal
 .
 
-
 +!coinChoseMe(ProposedDeal)
 	<-
-	?agentO(OtherAgent);
-	//counterpropose
+	?yourName(OtherAgent);
 	?theSetOfNegotiationDeals(SortedSet);
 	?findRiskChangingDeal(SortedSet, ProposedDeal, CounterDeal);
 	.print("making counter proposal ", CounterDeal);
-	.wait(1000);
 	.send(OtherAgent, achieve, theirProposal(CounterDeal)) ;
 	-+myLastDeal(CounterDeal);
-	?myLastDeal(DD);
-	.print("[debug] My last deal was: ", DD)
 .
-
 
 //////////////////////////Their Proposal End/////////////////////////////
-+accepted(X) 
+
++accept(Deal)
 	<-
-	.print("Deal Accepted: ", X)	
+	.print("Deal Accepted: ", Deal)	
 .
+
+
 
 +conflictDeal
 	<-
-	?originalTask(Deal) ;
-	.print("Agreeing on conflict Deal: ", Deal)
+	?originalTask(Task) ;
+	.print("Conflict task: ", Task)
 .
