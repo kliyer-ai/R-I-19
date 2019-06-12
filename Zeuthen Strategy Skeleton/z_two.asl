@@ -70,17 +70,21 @@ cost([b,c,d,e,f],27).
 
 //I remember my task set. During experiments, make sure to adjust the task.
 // gets it from other agent
+allTasks([b, c, d, e, f]).//all tasks are then implicit
 
 //HELPER
 myName(z_two).
 yourName(z_one).
 iAmNotLazy.
 
+mySide([A1,A2],A2).
+
 //Checking if two task sets are indeed valid re-distribution. This code requires
 // having the total task set (b,c,d,e,f for example). You will need a way for totalTask
 //to get the total task set when agents need to calculate the total task set by themselves.
 validDistribution(OneSide,OtherSide) :-
-	checkTotalTask(OneSide,OtherSide,[b,c,d,e,f]) & //Adjust [b,c,d,e,f] with a totalTask belief later on in the assignment.
+	allTasks(AllTasks)&
+	checkTotalTask(OneSide,OtherSide,AllTasks) & //Adjust [b,c,d,e,f] with a totalTask belief later on in the assignment.
 	uniqueSets(OneSide,OtherSide).
 
 //Checking if the two task sets are indeed the total task. 
@@ -305,8 +309,9 @@ findRiskChangingDeal([MyDeal|Rest], ProposedDeal, FoundDeal) :-
 	?getBestDeal(BestDeal);
 	.print("My initial offer is: ", BestDeal);
 	+myLastDeal(BestDeal);
-	.wait(1000) // wait so other agent has time to set everything up
 	?yourName(OtherAgent);
+	.send(OtherAgent, tell, ready);
+	.wait({+ready}) // wait so other agent has time to set everything up
 	.send(OtherAgent, achieve, whoStarts(BestDeal))
 .
 
@@ -400,8 +405,8 @@ findRiskChangingDeal([MyDeal|Rest], ProposedDeal, FoundDeal) :-
 	:
 	getWillingnessToRisk(ProposedDeal, MyWillingness, TheirWillingness) &
 	MyWillingness == TheirWillingness &
-	.print("Flipping coin") &
 	.random(Coin) &
+	.print("Flipping coin", Coin) &
 	Coin <=0.5
 	<- 
 	//keep it my turn
@@ -452,7 +457,11 @@ findRiskChangingDeal([MyDeal|Rest], ProposedDeal, FoundDeal) :-
 
 +accept(Deal)
 	<-
-	.print("Deal Accepted: ", Deal)	
+	.print("Deal Accepted: ", Deal);
+	?mySide(Deal,D);
+	?originalTask(OT);
+	?getUtility(D,OT,U);
+	.print("Utility for me: ", U)
 .
 
 
