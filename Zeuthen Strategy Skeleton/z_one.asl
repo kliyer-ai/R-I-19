@@ -69,9 +69,9 @@ cost([c,d,e,f],27).
 cost([b,c,d,e,f],27).
 
 //I remember my task set. During experiments, make sure to adjust the task.
-originalTask([d, f]).
-allTasks([b, c, d, e, f]).
-
+originalTask([d,e]).
+allTasks([b, c, d,e,f]).
+//allTasks([ b,c,e,f]).
 //HELPER
 myName(z_one).
 yourName(z_two).
@@ -219,11 +219,12 @@ dealWithBestUtility([MyDeal1,TheirDeal1],  [[MyDeal2,TheirDeal2]|Rest], BestDeal
 //Risk
 
 // proposed deal is coming from the other agent	
-myWillingnessToRisk([MyDeal, _], [ProposedDeal, _], Risk) :-
+myWillingnessToRisk([MyDeal,_ ], [ProposedDeal,_ ], Risk) :-
 	originalTask(OT) &
 	getUtility(MyDeal, OT, MyUtility) & 
 	getUtility(ProposedDeal, OT, ProposedUtility) & 
-	Risk = (MyUtility - ProposedUtility)/(MyUtility).
+	Risk = (MyUtility - ProposedUtility)/(MyUtility) &
+	.print(MyDeal,ProposedDeal,"my WTR:frac{", MyUtility, "-", ProposedUtility, "}{", MyUtility , "}=", Risk).
 	
 // proposed deal is coming from the other agent	
 // but we are calculating the WRisk for the other agent 
@@ -232,7 +233,8 @@ theirWillingnessToRisk([_, MyDeal], [_, ProposedDeal], Risk) :-
 	theirOriginalTask(TOT) & 
 	getUtility(MyDeal, TOT, MyUtility) & 
 	getUtility(ProposedDeal, TOT, ProposedUtility) & 
-	Risk = (ProposedUtility - MyUtility)/(ProposedUtility).
+	Risk = (ProposedUtility - MyUtility)/(ProposedUtility) &
+	.print(MyDeal,ProposedDeal,"their WTR:frac{", MyUtility, "-", ProposedUtility, "}{", MyUtility , "}=", Risk).
 	
 	
 getWillingnessToRisk(ProposedDeal, MyWillingness, TheirWillingness) :-
@@ -309,8 +311,15 @@ findRiskChangingDeal([MyDeal|Rest], ProposedDeal, FoundDeal) :-
 	+myLastDeal(BestDeal);
 	?yourName(OtherAgent);
 	.send(OtherAgent, tell, ready);
-	.wait({+ready}) // wait so other agent has time to set everything up
-	.send(OtherAgent, achieve, whoStarts(BestDeal))
+	.print("..");
+	// wait so other agent has time to set everything up
+	if(ready){
+	.print("ready already")
+	}else{
+	.wait({+ready});
+	}
+	.send(OtherAgent, achieve, whoStarts(BestDeal));
+	.print("started")
 .
 
 

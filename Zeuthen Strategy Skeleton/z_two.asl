@@ -70,7 +70,9 @@ cost([b,c,d,e,f],27).
 
 //I remember my task set. During experiments, make sure to adjust the task.
 // gets it from other agent
-allTasks([b, c, d, e, f]).//all tasks are then implicit
+allTasks([b,c,d,e,f]).//all tasks are then implicit
+//allTasks([ b,c,e,f]).
+
 
 //HELPER
 myName(z_two).
@@ -223,7 +225,8 @@ myWillingnessToRisk([_, MyDeal], [_, ProposedDeal], Risk) :-
 	originalTask(OT) &
 	getUtility(MyDeal, OT, MyUtility) & 
 	getUtility(ProposedDeal, OT, ProposedUtility) & 
-	Risk = (MyUtility - ProposedUtility)/(MyUtility).
+	Risk = (MyUtility - ProposedUtility)/(MyUtility) &
+	.print("my WTR:frac{", MyUtility, "-", ProposedUtility, "}{", MyUtility , "}=", Risk).
 	
 // proposed deal is coming from the other agent	
 // but we are calculating the WRisk for the other agent 
@@ -232,7 +235,8 @@ theirWillingnessToRisk([MyDeal, _], [ProposedDeal, _], Risk) :-
 	theirOriginalTask(TOT) & 
 	getUtility(MyDeal, TOT, MyUtility) & 
 	getUtility(ProposedDeal, TOT, ProposedUtility) & 
-	Risk = (ProposedUtility - MyUtility)/(ProposedUtility).
+	Risk = (ProposedUtility - MyUtility)/(ProposedUtility) &
+	.print("their WTR:frac{", MyUtility, "-", ProposedUtility, "}{", MyUtility , "}=", Risk).
 	
 	
 getWillingnessToRisk(ProposedDeal, MyWillingness, TheirWillingness) :-
@@ -267,7 +271,7 @@ findRiskChangingDeal([MyDeal|Rest], ProposedDeal, MyDeal) :-
 	not used(MyDeal).
 	
 findRiskChangingDeal([MyDeal|Rest], ProposedDeal, FoundDeal) :-
-	.print("recurse findRiskChangingDeal") &
+	.print("recurse findRiskChangingDeal", MyDeal) &
 	findRiskChangingDeal(Rest, ProposedDeal, FoundDeal) .
 	
 
@@ -300,7 +304,8 @@ findRiskChangingDeal([MyDeal|Rest], ProposedDeal, FoundDeal) :-
 	//By specifying originalTask in the return, we can seperate Answer from the rest and make a new belief with it.
 	+theirOriginalTask(Answer);
 	.print("Agent 1's task is ", Answer);
-	.difference([b, c, d, e, f], Answer, MyTask);
+	?allTasks(AllTasks);
+	.difference(AllTasks, Answer, MyTask);
 	+originalTask(MyTask);
 	?setOfDeals(Deals); //Finding all good deals, but they are unsorted.
 	?sortedSet(Deals,SortedSet); //All good deals are now sorted.
@@ -311,7 +316,12 @@ findRiskChangingDeal([MyDeal|Rest], ProposedDeal, FoundDeal) :-
 	+myLastDeal(BestDeal);
 	?yourName(OtherAgent);
 	.send(OtherAgent, tell, ready);
-	.wait({+ready}) // wait so other agent has time to set everything up
+	 // wait so other agent has time to set everything up
+	if(ready){
+	.print("ready already")
+	}else{
+	.wait({+ready});
+	}
 	.send(OtherAgent, achieve, whoStarts(BestDeal))
 .
 
@@ -461,7 +471,7 @@ findRiskChangingDeal([MyDeal|Rest], ProposedDeal, FoundDeal) :-
 	?mySide(Deal,D);
 	?originalTask(OT);
 	?getUtility(D,OT,U);
-	.print("Utility for me: ", U)
+	.print("Utility for me: ", U,"  ",OT,"->", D)
 .
 
 
