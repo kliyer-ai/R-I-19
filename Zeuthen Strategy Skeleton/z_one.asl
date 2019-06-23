@@ -69,7 +69,7 @@ cost([c,d,e,f],27).
 cost([b,c,d,e,f],27).
 
 //I remember my task set. During experiments, make sure to adjust the task.
-originalTask([d,e]).
+originalTask([b,c]).
 allTasks([b, c, d,e,f]).
 //allTasks([ b,c,e,f]).
 //HELPER
@@ -103,7 +103,7 @@ getUtility(NT, OT, Utility) :-
 	cost(OT, COT) &
 	cost(NT, CNT) &
 	Utility = COT - CNT.
-	
+	                          
 //I know when a task is individual rational.
 indiRatio(NT, OT) :- //true.
 	getUtility(NT, OT, Utility) &
@@ -223,9 +223,7 @@ myWillingnessToRisk([MyDeal,_ ], [ProposedDeal,_ ], Risk) :-
 	originalTask(OT) &
 	getUtility(MyDeal, OT, MyUtility) & 
 	getUtility(ProposedDeal, OT, ProposedUtility) & 
-	Risk = (MyUtility - ProposedUtility)/(MyUtility) &
-	.print(MyDeal,ProposedDeal,"my WTR:frac{", MyUtility, "-", ProposedUtility, "}{", MyUtility , "}=", Risk).
-	
+	Risk = (MyUtility - ProposedUtility)/(MyUtility).	
 // proposed deal is coming from the other agent	
 // but we are calculating the WRisk for the other agent 
 // so his perspective becomes my perspective
@@ -233,9 +231,7 @@ theirWillingnessToRisk([_, MyDeal], [_, ProposedDeal], Risk) :-
 	theirOriginalTask(TOT) & 
 	getUtility(MyDeal, TOT, MyUtility) & 
 	getUtility(ProposedDeal, TOT, ProposedUtility) & 
-	Risk = (ProposedUtility - MyUtility)/(ProposedUtility) &
-	.print(MyDeal,ProposedDeal,"their WTR:frac{", MyUtility, "-", ProposedUtility, "}{", MyUtility , "}=", Risk).
-	
+	Risk = (ProposedUtility - MyUtility)/(ProposedUtility).	
 	
 getWillingnessToRisk(ProposedDeal, MyWillingness, TheirWillingness) :-
 	myLastDeal(MyDeal) &
@@ -313,11 +309,7 @@ findRiskChangingDeal([MyDeal|Rest], ProposedDeal, FoundDeal) :-
 	.send(OtherAgent, tell, ready);
 	.print("..");
 	// wait so other agent has time to set everything up
-	if(ready){
-	.print("ready already")
-	}else{
-	.wait({+ready});
-	}
+	.wait(ready);
 	.send(OtherAgent, achieve, whoStarts(BestDeal));
 	.print("started")
 .
@@ -468,7 +460,7 @@ findRiskChangingDeal([MyDeal|Rest], ProposedDeal, FoundDeal) :-
 	?mySide(Deal,D);
 	?originalTask(OT);
 	?getUtility(D,OT,U);
-	.print("Utility for me: ", U)
+	.print("Utility for me: ", U,"  ",OT,"->", D)
 .
 
 

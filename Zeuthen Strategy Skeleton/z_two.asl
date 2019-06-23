@@ -225,9 +225,7 @@ myWillingnessToRisk([_, MyDeal], [_, ProposedDeal], Risk) :-
 	originalTask(OT) &
 	getUtility(MyDeal, OT, MyUtility) & 
 	getUtility(ProposedDeal, OT, ProposedUtility) & 
-	Risk = (MyUtility - ProposedUtility)/(MyUtility) &
-	.print("my WTR:frac{", MyUtility, "-", ProposedUtility, "}{", MyUtility , "}=", Risk).
-	
+	Risk = (MyUtility - ProposedUtility)/(MyUtility) .	
 // proposed deal is coming from the other agent	
 // but we are calculating the WRisk for the other agent 
 // so his perspective becomes my perspective
@@ -235,9 +233,7 @@ theirWillingnessToRisk([MyDeal, _], [ProposedDeal, _], Risk) :-
 	theirOriginalTask(TOT) & 
 	getUtility(MyDeal, TOT, MyUtility) & 
 	getUtility(ProposedDeal, TOT, ProposedUtility) & 
-	Risk = (ProposedUtility - MyUtility)/(ProposedUtility) &
-	.print("their WTR:frac{", MyUtility, "-", ProposedUtility, "}{", MyUtility , "}=", Risk).
-	
+	Risk = (ProposedUtility - MyUtility)/(ProposedUtility) .	
 	
 getWillingnessToRisk(ProposedDeal, MyWillingness, TheirWillingness) :-
 	myLastDeal(MyDeal) &
@@ -271,7 +267,6 @@ findRiskChangingDeal([MyDeal|Rest], ProposedDeal, MyDeal) :-
 	not used(MyDeal).
 	
 findRiskChangingDeal([MyDeal|Rest], ProposedDeal, FoundDeal) :-
-	.print("recurse findRiskChangingDeal", MyDeal) &
 	findRiskChangingDeal(Rest, ProposedDeal, FoundDeal) .
 	
 
@@ -317,11 +312,7 @@ findRiskChangingDeal([MyDeal|Rest], ProposedDeal, FoundDeal) :-
 	?yourName(OtherAgent);
 	.send(OtherAgent, tell, ready);
 	 // wait so other agent has time to set everything up
-	if(ready){
-	.print("ready already")
-	}else{
-	.wait({+ready});
-	}
+	.wait(ready);
 	.send(OtherAgent, achieve, whoStarts(BestDeal))
 .
 
